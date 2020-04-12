@@ -5,5 +5,6 @@ set(CMAKE_C_STANDARD 99)
 
 include_directories(libcurl)
 find_library(curl libcurl)
-link_libraries(curl)
-add_executable(nbget main.c requester.c)
+find_library(pthread pthread)
+link_libraries(curl pthread)
+add_executable(nbget main.c requester.c thread_control.c)
