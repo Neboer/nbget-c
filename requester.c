@@ -37,17 +37,18 @@ curl_off_t part_download(char *download_address, range range, char *proxy, char 
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
     curl_off_t download_speed;
     // bytes per second
-    curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &download_speed);
     int result = curl_easy_perform(curl);
     if (result != CURLE_OK) {
         fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror((CURLcode) result));
         download_speed = -1;
+    } else {
+        curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &download_speed);
     }
     return download_speed;
 }
 
-void copy_and_low(const char *source, char *dest, size_t size) {
-    for (int offset = 0; offset < size; offset++) {
+void copy_and_low(const char *source, char *dest, size_t length) {
+    for (int offset = 0; offset < length; offset++) {
         dest[offset] = (char) tolower(source[offset]);
     }
 }
@@ -55,17 +56,14 @@ void copy_and_low(const char *source, char *dest, size_t size) {
 // size is always 1
 // userdata is a pointer to a file_bytes object.
 static size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
-    char *head_data = malloc(size + 2);
-    copy_and_low(buffer, head_data, size);
-    head_data[size] = '\n';
-    head_data[size + 1] = 0;
+    char *head_data = malloc(nitems + 1);
+    copy_and_low(buffer, head_data, nitems);
+    head_data[nitems-2] = 0;
     char *head_occur_position = strstr(head_data, "content-length: ");
-    char content_length_value[50];
-    memccpy(content_length_value, head_occur_position + strlen("content-length: "), '\n', 50);
-    file_bytes total_file_length = strtoull(content_length_value, NULL, 0);
-    *(file_bytes *) userdata = total_file_length;
-    /* received header is nitems * size long in 'buffer' NOT ZERO TERMINATED */
-    /* 'userdata' is set with CURLOPT_HEADERDATA */
+    if (head_occur_position) {
+        file_bytes total_file_length = strtoull(head_occur_position + sizeof("content-length: ") - 1, NULL, 0);
+        *(file_bytes *) userdata = total_file_length;
+    }
     return nitems * size;
 }
 
@@ -76,5 +74,6 @@ int get_file_size(char *download_address) {
     curl_easy_setopt(curl, CURLOPT_NOBODY, 1L);
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &total_file_length);
+    curl_easy_perform(curl);
     return total_file_length;
 }
