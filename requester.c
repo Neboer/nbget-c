@@ -1,5 +1,4 @@
 #include <stdio.h>
-#include <pthread.h>
 #include <curl/curl.h>
 #include <string.h>
 #include <stdlib.h>
@@ -9,6 +8,7 @@
 
 typedef unsigned long long file_bytes;
 
+// standard string index range. for example cde in abcdefg is at 2,5
 typedef struct {
     unsigned long long start;
     unsigned long long end;
@@ -23,9 +23,11 @@ typedef struct {
 
 // range is very annoying. HTTP range and FILE* range are different.
 // For example. HTTP range 42-45 contains 4 bytes. The pointer must be at 41 when write data.
-int part_download(char *download_address, range range, char *proxy, char *file_name) {
-    FILE *file = fopen(file_name, "wb");
-    fseeko(file, 0xFFFFFFF, SEEK_SET);
+curl_off_t part_download(char *download_address, range range, char *proxy, char *file_name) {
+    // rb+ explanation: open in this mode, the file won't get destroyed. But it requires a long enough file in advance.
+    FILE *file = fopen(file_name, "rb+");
+    // fseeko can take larger param as position up to 64 bytes integer.
+    fseeko(file, range.start, SEEK_SET);
     CURL *curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, download_address);
     char range_string[60]; // maybe 60 is just enough...
@@ -33,11 +35,15 @@ int part_download(char *download_address, range range, char *proxy, char *file_n
     curl_easy_setopt(curl, CURLOPT_RANGE, range_string);
     curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
+    curl_off_t download_speed;
+    // bytes per second
+    curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &download_speed);
     int result = curl_easy_perform(curl);
-    if (result != CURLE_OK)
+    if (result != CURLE_OK) {
         fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror((CURLcode) result));
-    // if the result is error, caller can come up with new way to perform the download of this block.
-    return result;
+        download_speed = -1;
+    }
+    return download_speed;
 }
 
 void copy_and_low(const char *source, char *dest, size_t size) {
@@ -71,15 +77,4 @@ int get_file_size(char *download_address) {
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &total_file_length);
     return total_file_length;
-}
-
-// things will be done in each single thread.
-int in_thread(void *param) {
-    params *params1 = param;
-    int code = part_download(params1->download_address, params1->range, params1->proxy, params1->file_name);
-    return code;
-}
-
-void thread_init(char *download_address, char **proxy_list, char *file_name) {
-
 }
