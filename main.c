@@ -3,6 +3,8 @@
 #include "parser.c"
 #include "download_control.c"
 #include "file_control.c"
+//#include "progress.c"
+#include "error_control.c"
 
 /* command line usage
  * nbget https://www.example.com http://localhost:1090 socks5://localhost:1080 good.txt
