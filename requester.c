@@ -32,6 +32,8 @@ curl_off_t part_download(char *download_address, range range, char *proxy, char 
     curl_easy_setopt(curl, CURLOPT_URL, download_address);
     char range_string[60]; // maybe 60 is just enough...
     sprintf(range_string, "%llu-%llu", range.start, range.end);
+    // TODO: for test usage.
+    fprintf(stderr, "%s\n", range_string);
     curl_easy_setopt(curl, CURLOPT_RANGE, range_string);
     curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
@@ -46,8 +48,6 @@ curl_off_t part_download(char *download_address, range range, char *proxy, char 
         curl_easy_cleanup(curl);
         fclose(file);
     }
-    // TODO: for test usage.
-    fprintf(stderr, "%s\n", range_string);
     return download_speed;
 }
 

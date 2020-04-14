@@ -1,12 +1,13 @@
 #include <pthread.h>
 
 // things will be done in each single thread.
-void *create_download_thread(void *param) {
+void *block_download(void *param) {
     params *params1 = param;
     curl_off_t download_speed = part_download(params1->download_address, params1->range, params1->proxy,
                                               params1->file_name);
     curl_off_t *download_speed_address = malloc(sizeof(curl_off_t));
-    download_speed_address[0] = download_speed;
+    *download_speed_address = download_speed;
+    free(param);
     return (void *) download_speed_address;
 }
 
@@ -27,27 +28,24 @@ download_speed_list thread_arrange(char *download_address, char **proxy_list, ch
                                    file_bytes *thread_weight_length, file_bytes start_index) {
     file_bytes current_index = start_index;
     pthread_t *thread_list = malloc(sizeof(pthread_t) * proxy_count);
-    // download_speed_list store the real speed value instead of a pointer like create_download_thread returns.
+    // download_speed_list store the real speed value instead of a pointer like block_download returns.
     curl_off_t *download_speed_value_list = malloc(sizeof(curl_off_t) * proxy_count);
     for (int i = 0; i < proxy_count; i++) {
         file_bytes current_thread_download_size = thread_weight_length[i];
         if (current_thread_download_size > 0) {
             char *proxy_string = proxy_list[i];
-            params parameter_to_thread_download_function = {
-                    download_address,
-                    {
-                            current_index,
-                            current_index + current_thread_download_size
-                    },
-                    proxy_string,
-                    filename
-            };
+            void *param_addr = malloc(sizeof(params));
+            (*(params *) param_addr).download_address = download_address;
+            (*(params *) param_addr).range.start = current_index;
+            (*(params *) param_addr).range.end = current_index + current_thread_download_size;
+            (*(params *) param_addr).proxy = proxy_string;
+            (*(params *) param_addr).file_name = filename;
             // now start the process
-            pthread_create(&thread_list[i], NULL, (void *(*)(void *)) create_download_thread,
-                           &parameter_to_thread_download_function);
+            pthread_create(&thread_list[i], NULL, (void *(*)(void *)) block_download, param_addr);
             current_index += current_thread_download_size;
         }
     }
+
     for (int j = 0; j < proxy_count; j++) {
         if (thread_weight_length[j] > 0) {
             void *speed_value_addr;
@@ -61,6 +59,7 @@ download_speed_list thread_arrange(char *download_address, char **proxy_list, ch
             download_speed_value_list[j] = thread_weight_length[j];
         }
     }
+
     download_speed_list report_download_speed_list = {download_speed_value_list, proxy_count};
     return report_download_speed_list;
 }
