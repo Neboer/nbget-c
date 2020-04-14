@@ -43,7 +43,11 @@ curl_off_t part_download(char *download_address, range range, char *proxy, char 
         download_speed = -1;
     } else {
         curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &download_speed);
+        curl_easy_cleanup(curl);
+        fclose(file);
     }
+    // TODO: for test usage.
+    fprintf(stderr, "%s\n", range_string);
     return download_speed;
 }
 
@@ -58,7 +62,7 @@ void copy_and_low(const char *source, char *dest, size_t length) {
 static size_t header_callback(char *buffer, size_t size, size_t nitems, void *userdata) {
     char *head_data = malloc(nitems + 1);
     copy_and_low(buffer, head_data, nitems);
-    head_data[nitems-2] = 0;
+    head_data[nitems - 2] = 0;
     char *head_occur_position = strstr(head_data, "content-length: ");
     if (head_occur_position) {
         file_bytes total_file_length = strtoull(head_occur_position + sizeof("content-length: ") - 1, NULL, 0);
@@ -75,5 +79,6 @@ int get_file_size(char *download_address) {
     curl_easy_setopt(curl, CURLOPT_HEADERFUNCTION, header_callback);
     curl_easy_setopt(curl, CURLOPT_HEADERDATA, &total_file_length);
     curl_easy_perform(curl);
+    fputs("body request\n", stderr);
     return total_file_length;
 }

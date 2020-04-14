@@ -13,7 +13,7 @@ commandline_args parse_args(int argc, char **argv) {
     commandline_args args;
     args.download_address = argv[1];
     args.proxy_list = argv + 2;
-    args.proxy_count = argc - 2;
+    args.proxy_count = argc - 3;
     args.file_name = argv[argc-1];
     return args;
 }
