@@ -53,7 +53,7 @@ curl_off_t *blocked_multi_download(char *download_address, char **proxy_list, ch
             free(speed_value_addr);// a space of this address is opened by malloc(), now it's useless.
         } else {
             // if thread failed to download his block, the code will be kept
-            download_speed_value_list[j] = thread_block_size[j];
+            download_speed_value_list[j] = (curl_off_t) thread_block_size[j];
         }
     }
     return download_speed_value_list;
