@@ -27,6 +27,7 @@ void *test_one_proxy_speed(void *params_raw) {
     CURL *curl = curl_easy_init();
     curl_off_t download_speed = 0;
     curl_easy_setopt(curl, CURLOPT_URL, params->download_address);
+//    fprintf(stderr, "addr: %s proxy: %s\n", params->download_address, params->proxy);
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_RANGE, "0-5000");
     curl_easy_setopt(curl, CURLOPT_PROXY, params->proxy);
@@ -34,13 +35,14 @@ void *test_one_proxy_speed(void *params_raw) {
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 5);
     CURLcode result = curl_easy_perform(curl);
     if (result != CURLE_OK) {
-        fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror((CURLcode) result));
+        fprintf(stderr, "curl_easy_perform() failed while test: %s\n", curl_easy_strerror((CURLcode) result));
         download_speed = -1;
     } else {
         curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &download_speed);
         curl_easy_cleanup(curl);
     }
     curl_off_t *download_speed_raw = malloc(sizeof(curl_off_t));
+    *download_speed_raw = download_speed;
     return (void *) download_speed_raw;
 }
 

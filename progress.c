@@ -1,3 +1,5 @@
+#define METER_INTERVAL_SEC 1
+
 typedef struct {
     file_bytes already_download;
     curl_off_t current_speed;
@@ -37,15 +39,19 @@ void *show_progress(void *args_raw) {
             total_speed += args->info_list[i].current_speed;
             total_progress += args->info_list[i].already_download;
         }
-        fprintf(stderr, "\rspeed:%s, progress: %.*f%%", humanSize(total_speed), 1,
+        fprintf(stderr, "\rspeed:%s/s, progress: %.*f%%", humanSize(total_speed), 1,
                 (float) total_progress / (float) args->total_file_size * 100);
-        sleep(1);
+        sleep(METER_INTERVAL_SEC);
     }
     return NULL;
 }
 
 small_info *make_info_list(int size) {
     small_info *info_list = malloc(sizeof(small_info) * size);
+    for (int i = 0; i < size; ++i) {
+        info_list[i].already_download = 0;
+        info_list[i].current_speed = 0;
+    }
     return info_list;
 }
 

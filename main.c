@@ -31,8 +31,7 @@ int main(int argc, char **argv) {
     // these two vars will pass to another thread to monitor global download status.
     file_bytes last_big_block_checkpoint = 0;
     small_info *thread_report_info_list = make_info_list(testResult.proxyList.proxy_count);
-    download_whole_file(args.download_address, testResult, args.file_name, size, thread_report_info_list,
-                        &last_big_block_checkpoint);
     create_progress_thread(thread_report_info_list, testResult.proxyList.proxy_count, &last_big_block_checkpoint, size);
+    download_whole_file(args.download_address, testResult, args.file_name, size, thread_report_info_list,&last_big_block_checkpoint);
     curl_global_cleanup();
 }

@@ -23,13 +23,16 @@ progress_callback(void *callback_data_raw, curl_off_t dltotal, curl_off_t now_do
             last_time = callback_data->last_download_time_ms,
             last_download_size = callback_data->last_dl_size, now_time;
     curl_easy_getinfo(curl_opt, CURLINFO_TOTAL_TIME_T, &now_time);
-    callback_data->write_info_to->current_speed =
-            (now_download_size - last_download_size) * 1000 /
-            (now_time - last_time); // *1000 is safe, for the minus result is small
-    callback_data->write_info_to->already_download = (file_bytes) now_download_size;
+    if (now_time > last_time && now_download_size > last_download_size) {
+        callback_data->write_info_to->current_speed =
+                (now_download_size - last_download_size) * 1000 /
+                (now_time - last_time); // *1000 is safe, for the minus result is small
+        callback_data->write_info_to->already_download = (file_bytes) now_download_size;
+        callback_data->last_download_time_ms = now_time;
+        callback_data->last_dl_size = now_download_size;
+    }
+    return 0;
 };
-
-
 
 // range is very annoying. HTTP range and FILE* range are different.
 // For example. HTTP range 42-45 contains 4 bytes. The pointer must be at 41 when write data.
