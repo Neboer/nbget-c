@@ -8,4 +8,4 @@ to adapt different thread's speed. As a result, the download speed will be very 
 This is quite interesting and is useful too. nbget based on libcurl 
 so it supports a wide range of protocols, is stable and cross-platform as well.
 
-nbget is licenced under MIT and is welcome for you to contribute.
+nbget is licenced under MIT. Looking forward to your contribution.
