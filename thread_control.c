@@ -1,19 +1,27 @@
-#include <pthread.h>
+typedef struct {
+    char *download_address;
+    range range;
+    char *proxy;
+    char *file_name;
+    small_info *status_info_to_report;
+} params;
 
 // things will be done in each single thread.
 void *block_download(void *param) {
     params *params1 = param;
     curl_off_t download_speed = part_download(params1->download_address, params1->range, params1->proxy,
-                                              params1->file_name);
+                                              params1->file_name, params1->status_info_to_report);
     curl_off_t *download_speed_address = malloc(sizeof(curl_off_t));
     *download_speed_address = download_speed;
     free(param);
     return (void *) download_speed_address;
 }
+
 // download control. start_index is a normal selector. start_index will be used in program as a bytes counter.
 // this function is blocked. until tile limit exceed or all download are finished.
-curl_off_t* blocked_multi_download(char *download_address, char **proxy_list, char *filename, int proxy_count,
-                                   file_bytes *thread_block_size, file_bytes start_index) {
+curl_off_t *blocked_multi_download(char *download_address, char **proxy_list, char *filename, int proxy_count,
+                                   file_bytes *thread_block_size, file_bytes start_index,
+                                   small_info *report_info_location_list) {
     file_bytes current_index = start_index;
     pthread_t *thread_list = malloc(sizeof(pthread_t) * proxy_count);
     // download_speed_list store the real speed value instead of a pointer like block_download returns.
@@ -28,6 +36,8 @@ curl_off_t* blocked_multi_download(char *download_address, char **proxy_list, ch
             (*(params *) param_addr).range.end = current_index + current_thread_download_size;
             (*(params *) param_addr).proxy = proxy_string;
             (*(params *) param_addr).file_name = filename;
+            // this is the address of small_info for the thread to report its current status ...
+            (*(params *) param_addr).status_info_to_report = report_info_location_list + i;
             // now start the process
             pthread_create(&thread_list[i], NULL, (void *(*)(void *)) block_download, param_addr);
             current_index += current_thread_download_size;

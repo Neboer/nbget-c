@@ -1,9 +1,20 @@
+#include <stdio.h>
+#include <curl/curl.h>
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
+#include <pthread.h>
+
+typedef unsigned long long file_bytes;
+
+#include "progress.c"
 #include "requester.c"
+#include "request_speed.c"
 #include "thread_control.c"
 #include "parser.c"
 #include "download_control.c"
 #include "file_control.c"
-//#include "progress.c"
+
 //#include "error_control.c"
 
 /* command line usage
@@ -17,6 +28,11 @@ int main(int argc, char **argv) {
     proxy_list proxyList = {args.proxy_list, args.proxy_count};
     create_file(args.file_name, size);
     struct test_result testResult = test_proxy_server(proxyList, args.download_address, args.file_name);
-    download_whole_file(args.download_address, testResult, args.file_name, size);
+    // these two vars will pass to another thread to monitor global download status.
+    file_bytes last_big_block_checkpoint = 0;
+    small_info *thread_report_info_list = make_info_list(testResult.proxyList.proxy_count);
+
+    download_whole_file(args.download_address, testResult, args.file_name, size, thread_report_info_list,
+                        &last_big_block_checkpoint);
     curl_global_cleanup();
 }

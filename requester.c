@@ -1,12 +1,5 @@
-#include <stdio.h>
-#include <curl/curl.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ctype.h>
-
 #define _FILE_OFFSET_BITS 64
 
-typedef unsigned long long file_bytes;
 
 // standard string index range. for example cde in abcdefg is at 2,5
 typedef struct {
@@ -14,31 +7,56 @@ typedef struct {
     unsigned long long end;
 } range;
 
-typedef struct {
-    char *download_address;
-    range range;
-    char *proxy;
-    char *file_name;
-} params;
+struct data_to_progress_callback {
+    CURL *curl_opt;
+    small_info *write_info_to;
+    curl_off_t last_dl_size;
+    curl_off_t last_download_time_ms;
+};
+
+int
+progress_callback(void *callback_data_raw, curl_off_t dltotal, curl_off_t now_download_size, curl_off_t ultotal,
+                  curl_off_t ulnow) {
+    struct data_to_progress_callback *callback_data = callback_data_raw;
+    CURL *curl_opt = callback_data->curl_opt;
+    curl_off_t
+            last_time = callback_data->last_download_time_ms,
+            last_download_size = callback_data->last_dl_size, now_time;
+    curl_easy_getinfo(curl_opt, CURLINFO_TOTAL_TIME_T, &now_time);
+    callback_data->write_info_to->current_speed =
+            (now_download_size - last_download_size) * 1000 /
+            (now_time - last_time); // *1000 is safe, for the minus result is small
+    callback_data->write_info_to->already_download = (file_bytes) now_download_size;
+};
+
+
 
 // range is very annoying. HTTP range and FILE* range are different.
 // For example. HTTP range 42-45 contains 4 bytes. The pointer must be at 41 when write data.
-curl_off_t part_download(char *download_address, range range, char *proxy, char *file_name) {
+// pass status_to_report to PROGRESS callback.
+curl_off_t
+part_download(char *download_address, range range, char *proxy, char *file_name, small_info *status_to_report) {
     // rb+ explanation: open in this mode, the file won't get destroyed. But it requires a long enough file in advance.
     FILE *file = fopen(file_name, "rb+");
     // fseeko can take larger param as position up to 64 bytes integer.
-    fseeko(file, range.start, SEEK_SET);
+    fseeko(file, (__off_t) range.start, SEEK_SET);
     CURL *curl = curl_easy_init();
     curl_easy_setopt(curl, CURLOPT_URL, download_address);
     char range_string[60]; // maybe 60 is just enough...
     sprintf(range_string, "%llu-%llu", range.start, range.end);
-    // TODO: for test usage.
-//    fprintf(stderr, "%s\n", range_string);
     curl_easy_setopt(curl, CURLOPT_RANGE, range_string);
     curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 10);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 5);
+    curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    struct data_to_progress_callback *callback_data = malloc(sizeof(struct data_to_progress_callback));
+    callback_data->curl_opt = curl;
+    callback_data->last_dl_size = 0;
+    callback_data->last_download_time_ms = 0;
+    callback_data->write_info_to = status_to_report;
+    curl_easy_setopt(curl, CURLOPT_XFERINFODATA, (void *) callback_data);
+    curl_easy_setopt(curl, CURLOPT_NOPROGRESS, 0L);
     curl_off_t download_speed;
     // bytes per second
     int result = curl_easy_perform(curl);
@@ -48,9 +66,10 @@ curl_off_t part_download(char *download_address, range range, char *proxy, char 
     } else {
         curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &download_speed);
         curl_easy_cleanup(curl);
-        fclose(file);
     }
-    fprintf(stderr, "%s at speed %ld\n", range_string, download_speed);
+    fclose(file);
+    free(callback_data);
+//    fprintf(stderr, "%s at speed %ld\n", range_string, download_speed);
     return download_speed;
 }
 
@@ -74,7 +93,7 @@ static size_t header_callback(char *buffer, size_t size, size_t nitems, void *us
     return nitems * size;
 }
 
-int get_file_size(char *download_address) {
+file_bytes get_file_size(char *download_address) {
     CURL *curl = curl_easy_init();
     file_bytes total_file_length;
     curl_easy_setopt(curl, CURLOPT_URL, download_address);
@@ -85,3 +104,4 @@ int get_file_size(char *download_address) {
     fputs("body request\n", stderr);
     return total_file_length;
 }
+

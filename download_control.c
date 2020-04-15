@@ -20,9 +20,10 @@ struct test_result test_proxy_server(proxy_list proxyList, char *download_addres
     for (int i = 0; i < proxyList.proxy_count; i++) {
         thread_block_size_list[i] = initial_download_block_size;
     }
+    // TODO: write a speed test libcurl function not normal one.
     curl_off_t *test_speed_result = blocked_multi_download(download_address, proxyList.proxy_string_list,
                                                            filename, proxyList.proxy_count,
-                                                           thread_block_size_list, 0);
+                                                           thread_block_size_list, 0, NULL);
     int proxy_index = 0;
     for (int i = 0; i < proxyList.proxy_count; i++) {
         if (test_speed_result[i] >
@@ -66,22 +67,22 @@ trunk_to_file_size(file_bytes *block_size_list, int block_count, file_bytes curr
     return trunk_result;
 }
 
+// checkpoint is where last block download start.
 void download_whole_file(char *download_address, struct test_result proxy_with_info, char *filename,
-                         file_bytes total_length) {
-    file_bytes current_download_block_position = 0;
-    while (current_download_block_position != total_length) {
+                         file_bytes total_length, small_info *thread_report_info_list, file_bytes *checkpoint) {
+    while (*checkpoint != total_length) {
         // going to download block of file size list.
         file_bytes *block_size_list_thread = calculate_block_size_to_download_one_thread(
                 proxy_with_info.download_speed_list, proxy_with_info.proxyList.proxy_count);
         struct trunk_result trunkResult = trunk_to_file_size(block_size_list_thread,
                                                              proxy_with_info.proxyList.proxy_count,
-                                                             current_download_block_position, total_length);
+                                                             *checkpoint, total_length);
         proxy_with_info.download_speed_list = blocked_multi_download(download_address,
                                                                      proxy_with_info.proxyList.proxy_string_list,
                                                                      filename, trunkResult.new_block_count_value,
                                                                      block_size_list_thread,
-                                                                     current_download_block_position);
-        current_download_block_position = trunkResult.new_position;
+                                                                     *checkpoint, thread_report_info_list);
+        *checkpoint = trunkResult.new_position;
     }
 }
 
