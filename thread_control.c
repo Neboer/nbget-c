@@ -10,11 +10,9 @@ void *block_download(void *param) {
     free(param);
     return (void *) download_speed_address;
 }
-
-
 // download control. start_index is a normal selector. start_index will be used in program as a bytes counter.
 // this function is blocked. until tile limit exceed or all download are finished.
-curl_off_t* thread_arrange(char *download_address, char **proxy_list, char *filename, int proxy_count,
+curl_off_t* blocked_multi_download(char *download_address, char **proxy_list, char *filename, int proxy_count,
                                    file_bytes *thread_block_size, file_bytes start_index) {
     file_bytes current_index = start_index;
     pthread_t *thread_list = malloc(sizeof(pthread_t) * proxy_count);
@@ -35,7 +33,6 @@ curl_off_t* thread_arrange(char *download_address, char **proxy_list, char *file
             current_index += current_thread_download_size;
         }
     }
-
     for (int j = 0; j < proxy_count; j++) {
         if (thread_block_size[j] > 0) {
             void *speed_value_addr;

@@ -20,9 +20,9 @@ struct test_result test_proxy_server(proxy_list proxyList, char *download_addres
     for (int i = 0; i < proxyList.proxy_count; i++) {
         thread_block_size_list[i] = initial_download_block_size;
     }
-    curl_off_t *test_speed_result = thread_arrange(download_address, proxyList.proxy_string_list,
-                                                   filename, proxyList.proxy_count,
-                                                   thread_block_size_list, 0);
+    curl_off_t *test_speed_result = blocked_multi_download(download_address, proxyList.proxy_string_list,
+                                                           filename, proxyList.proxy_count,
+                                                           thread_block_size_list, 0);
     int proxy_index = 0;
     for (int i = 0; i < proxyList.proxy_count; i++) {
         if (test_speed_result[i] >
@@ -45,58 +45,43 @@ file_bytes *calculate_block_size_to_download_one_thread(curl_off_t *last_downloa
     return size_list;
 }
 
+struct trunk_result {
+    int new_block_count_value;
+    file_bytes new_position;
+};
+
 // if total block size reach the end of file, trunk the block and trunk block count into file range. return new count of trunk, else return 0. If the value is not 0,
 // that means the last count of block is downloading.
-int trunk_block_to_file_size(file_bytes *block_size_list, int block_count, file_bytes current_position,
-                              file_bytes total_length) {
+struct trunk_result
+trunk_to_file_size(file_bytes *block_size_list, int block_count, file_bytes current_position, file_bytes total_length) {
     for (int i = 0; i < block_count; i++) {
         current_position += block_size_list[i];
         if (current_position > total_length) {
             block_size_list[i] = total_length - (current_position - block_size_list[i]);
-            return i + 1;// return new length of the list.
+            struct trunk_result overflow_result = {i + 1, total_length};
+            return overflow_result;
         }
     }
-    return 0; // no need to trunk.
+    struct trunk_result trunk_result = {block_count, current_position};
+    return trunk_result;
 }
 
 void download_whole_file(char *download_address, struct test_result proxy_with_info, char *filename,
                          file_bytes total_length) {
-    short download_finished = 0;
     file_bytes current_download_block_position = 0;
-    // going to download block of file size list.
-    file_bytes *block_size_list_thread = calculate_block_size_to_download_one_thread(
-            proxy_with_info.download_speed_list, proxy_with_info.proxyList.proxy_count);
-
-
-    while (!download_finished) {
-        file_bytes total_trunk_size_this_loop = 0;
-        for (int j = 0; j < proxyList.proxy_count; j++) {
-            if (thread_block_size_list[j] > 0) {
-                total_trunk_size_this_loop += thread_block_size_list[j];
-                if (total_trunk_size_this_loop > total_length) {
-                    // download will finish in this loop.
-                    thread_block_size_list[j] = total_length - total_trunk_size_this_loop;
-                    for (j++; j < proxy_count; j++) {
-                        thread_block_size_list[j] = 0;
-                    }
-                    download_finished = 1;
-                    fputs("download finished\n", stderr);
-                    break;
-                }
-            }
-        }
-        // start wait block to download, this is a block function
-        download_speed_list speedList = thread_arrange(download_address, proxy_list, filename, proxy_count,
-                                                       thread_block_size_list, current_download_block_position);
-        for (int i = 0; i < speedList.list_length; i++) {
-            if (speedList.speed_list[i] > 0) {
-                thread_block_size_list[i] = speedList.speed_list[i] * expect_download_time_per_thread;
-            } else {
-                thread_block_size_list[i] = 0;
-            }
-        }
-        // current download finished, now move to next big block.
-        current_download_block_position += total_trunk_size_this_loop;
+    while (current_download_block_position != total_length) {
+        // going to download block of file size list.
+        file_bytes *block_size_list_thread = calculate_block_size_to_download_one_thread(
+                proxy_with_info.download_speed_list, proxy_with_info.proxyList.proxy_count);
+        struct trunk_result trunkResult = trunk_to_file_size(block_size_list_thread,
+                                                             proxy_with_info.proxyList.proxy_count,
+                                                             current_download_block_position, total_length);
+        proxy_with_info.download_speed_list = blocked_multi_download(download_address,
+                                                                     proxy_with_info.proxyList.proxy_string_list,
+                                                                     filename, trunkResult.new_block_count_value,
+                                                                     block_size_list_thread,
+                                                                     current_download_block_position);
+        current_download_block_position = trunkResult.new_position;
     }
 }
 
