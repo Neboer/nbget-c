@@ -31,7 +31,7 @@ void *test_one_proxy_speed(void *params_raw) {
     curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, WriteCallback);
     curl_easy_setopt(curl, CURLOPT_RANGE, "0-5000");
     curl_easy_setopt(curl, CURLOPT_PROXY, params->proxy);
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 10);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, LOWEST_SPEED_BPS);
     curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 5);
     CURLcode result = curl_easy_perform(curl);
     if (result != CURLE_OK) {

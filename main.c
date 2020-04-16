@@ -7,6 +7,7 @@
 #include <unistd.h>
 
 typedef unsigned long long file_bytes;
+#define LOWEST_SPEED_BPS 50000
 
 #include "progress.c"
 #include "requester.c"
@@ -26,8 +27,8 @@ int main(int argc, char **argv) {
     curl_global_init(CURL_GLOBAL_ALL);
     commandline_args args = parse_args(argc, argv);
     file_bytes size = get_file_size(args.download_address);
-    create_file(args.file_name, size);
     struct test_result testResult = test_proxy_list(args.download_address, args.proxy_list, args.proxy_count);
+    create_file(args.file_name, size);
     // these two vars will pass to another thread to monitor global download status.
     file_bytes last_big_block_checkpoint = 0;
     small_info *thread_report_info_list = make_info_list(testResult.proxyList.proxy_count);

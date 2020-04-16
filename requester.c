@@ -50,8 +50,6 @@ part_download(char *download_address, range range, char *proxy, char *file_name,
     curl_easy_setopt(curl, CURLOPT_RANGE, range_string);
     curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, 10);
-    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 5);
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
     struct data_to_progress_callback *callback_data = malloc(sizeof(struct data_to_progress_callback));
     callback_data->curl_opt = curl;
