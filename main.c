@@ -26,16 +26,16 @@ typedef unsigned long long file_bytes;
 int main(int argc, char **argv) {
     curl_global_init(CURL_GLOBAL_ALL);
     commandline_args args = parse_args(argc, argv);
+    int *work_proxy_count = &(args.proxy_count);// work proxy count will pass through whole program.
     file_bytes size = get_file_size(args.download_address);
-    struct test_result testResult = test_proxy_list(args.download_address, args.proxy_list, args.proxy_count);
+    test_result testResult = test_proxy_list(args.download_address, args.proxy_list, work_proxy_count);
     printf("active/positive proxy count %d\n", args.proxy_count);
     fflush(stdout);
     create_file(args.file_name, size);
     // these two vars will pass to another thread to monitor global download status.
     file_bytes last_big_block_checkpoint = 0;
-    small_info *thread_report_info_list = make_info_list(testResult.proxyList.proxy_count);
-    create_progress_thread(thread_report_info_list, testResult.proxyList.proxy_count, &last_big_block_checkpoint, size);
-    download_whole_file(args.download_address, testResult, args.file_name, size, thread_report_info_list,
-                        &last_big_block_checkpoint);
+    small_info *thread_report_info_list = make_info_list(*work_proxy_count);
+    create_progress_thread(thread_report_info_list, work_proxy_count, &last_big_block_checkpoint, size);
+    download_whole_file(args.download_address, testResult, work_proxy_count, args.file_name, size, thread_report_info_list, &last_big_block_checkpoint);
     curl_global_cleanup();
 }

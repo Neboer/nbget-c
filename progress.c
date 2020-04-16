@@ -7,7 +7,7 @@ typedef struct {
 
 struct args_progress {
     small_info *info_list;
-    int count;
+    int* proxy_count;
     file_bytes *checkpoint;
     file_bytes total_file_size;
 };
@@ -36,7 +36,7 @@ void *show_progress(void *args_raw) {
     while (*(args->checkpoint) != args->total_file_size) {
         curl_off_t total_speed = 0;
         file_bytes total_progress = *(args->checkpoint);
-        for (int i = 0; i < args->count; ++i) {
+        for (int i = 0; i < *(args->proxy_count); ++i) {
 //            total_speed += args->info_list[i].current_speed;
             total_progress += args->info_list[i].already_download;
         }
@@ -59,11 +59,12 @@ small_info *make_info_list(int size) {
 }
 
 pthread_t *
-create_progress_thread(small_info *info_list, int count, file_bytes *checkpoint, file_bytes total_file_size) {
+create_progress_thread(small_info *info_list, int *current_proxy_count, file_bytes *checkpoint,
+                       file_bytes total_file_size) {
     struct args_progress *argsProgress = malloc(sizeof(argsProgress));
     pthread_t *progress_thread = malloc(
             sizeof(pthread_t));// this is a memory block which is created and never recycle ><.
-    struct args_progress argsProgress_temp = {info_list, count, checkpoint, total_file_size};
+    struct args_progress argsProgress_temp = {info_list, current_proxy_count, checkpoint, total_file_size};
     *argsProgress = argsProgress_temp;
     pthread_create(progress_thread, NULL, show_progress, (void *) argsProgress);
     return progress_thread;

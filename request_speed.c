@@ -14,15 +14,9 @@ struct test_params {
 };
 
 typedef struct {
-    char **proxy_string_list;
-    int proxy_count;
-} proxy_list;
-
-
-struct test_result {
-    proxy_list proxyList;
-    curl_off_t *download_speed_list;
-};
+    char **proxy_list;
+    curl_off_t *speed_list;
+} test_result;
 
 void *test_one_proxy_speed(void *params_raw) {
     struct test_params *params = params_raw;
@@ -48,16 +42,18 @@ void *test_one_proxy_speed(void *params_raw) {
     return (void *) download_speed_raw;
 }
 
-struct test_result test_proxy_list(char *download_address, char **proxy_list, int proxy_count) {
-    pthread_t thread_list[proxy_count];
-    char **useful_proxy_list = malloc(proxy_count * sizeof(char *));
-    curl_off_t *useful_speed_list = malloc(proxy_count * sizeof(curl_off_t));
-    for (int i = 0; i < proxy_count; ++i) {
+// return a new proxy list and change global work proxy count variable
+test_result test_proxy_list(char *download_address, char **proxy_list, int *work_proxy_count) {
+    int old_proxy_count = *work_proxy_count;
+    pthread_t thread_list[old_proxy_count];// this will waste a bit of memory. You don't care? Neither do I!
+    char **useful_proxy_list = malloc(*work_proxy_count * sizeof(char *));
+    curl_off_t *useful_speed_list = malloc(old_proxy_count * sizeof(curl_off_t));
+    for (int i = 0; i < old_proxy_count; ++i) {
         struct test_params params = {download_address, proxy_list[i]};
         pthread_create(&thread_list[i], NULL, test_one_proxy_speed, (void *) &params);
     }
     int proxy_index = 0;
-    for (int i = 0; i < proxy_count; ++i) {
+    for (int i = 0; i < old_proxy_count; ++i) {
         void *download_speed_raw;
         pthread_join(thread_list[i], &download_speed_raw);
         curl_off_t download_speed = *((curl_off_t *) download_speed_raw);
@@ -67,6 +63,7 @@ struct test_result test_proxy_list(char *download_address, char **proxy_list, in
             proxy_index++;
         }
     }
-    struct test_result result = {{useful_proxy_list, proxy_index}, useful_speed_list};
+    *work_proxy_count = proxy_index;
+    test_result result = {useful_proxy_list, useful_speed_list};
     return result;
 }
