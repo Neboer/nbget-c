@@ -1,6 +1,6 @@
 typedef struct {
     char *download_address;
-    range range;
+    range download_ranger;
     char *proxy;
     char *file_name;
     small_info *status_info_to_report;
@@ -9,7 +9,7 @@ typedef struct {
 // things will be done in each single thread.
 void *block_download(void *param) {
     params *params1 = param;
-    curl_off_t download_speed = part_download(params1->download_address, params1->range, params1->proxy,
+    curl_off_t download_speed = part_download(params1->download_address, params1->download_ranger, params1->proxy,
                                               params1->file_name, params1->status_info_to_report);
     curl_off_t *download_speed_address = malloc(sizeof(curl_off_t));
     *download_speed_address = download_speed;
@@ -32,8 +32,8 @@ curl_off_t *blocked_multi_download(char *download_address, char **proxy_list, ch
             char *proxy_string = proxy_list[i];
             void *param_addr = malloc(sizeof(params));
             (*(params *) param_addr).download_address = download_address;
-            (*(params *) param_addr).range.start = current_index;
-            (*(params *) param_addr).range.end = current_index + current_thread_download_size;
+            (*(params *) param_addr).download_ranger.start = current_index;
+            (*(params *) param_addr).download_ranger.end = current_index + current_thread_download_size;
             (*(params *) param_addr).proxy = proxy_string;
             (*(params *) param_addr).file_name = filename;
             // this is the address of small_info for the thread to report its current status ...

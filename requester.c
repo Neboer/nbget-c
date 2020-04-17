@@ -24,9 +24,9 @@ progress_callback(void *callback_data_raw, curl_off_t dltotal, curl_off_t now_do
             last_download_size = callback_data->last_dl_size, now_time;
     curl_easy_getinfo(curl_opt, CURLINFO_TOTAL_TIME_T, &now_time);
     if (now_time > last_time && now_download_size > last_download_size) {
-        callback_data->write_info_to->current_speed =
+        /* callback_data->write_info_to->current_speed =
                 (now_download_size - last_download_size) * 1000 /
-                (now_time - last_time); // *1000 is safe, for the minus result is small
+                (now_time - last_time); */
         callback_data->write_info_to->already_download = (file_bytes) now_download_size;
         callback_data->last_download_time_ms = now_time;
         callback_data->last_dl_size = now_download_size;
@@ -51,6 +51,9 @@ part_download(char *download_address, range range, char *proxy, char *file_name,
     curl_easy_setopt(curl, CURLOPT_PROXY, proxy);
     curl_easy_setopt(curl, CURLOPT_WRITEDATA, file);
     curl_easy_setopt(curl, CURLOPT_XFERINFOFUNCTION, progress_callback);
+    // warning: the download will abort when meet low speed problem.
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_LIMIT, LOWEST_SPEED_BPS);
+    curl_easy_setopt(curl, CURLOPT_LOW_SPEED_TIME, 5);
     struct data_to_progress_callback *callback_data = malloc(sizeof(struct data_to_progress_callback));
     callback_data->curl_opt = curl;
     callback_data->last_dl_size = 0;
@@ -63,7 +66,7 @@ part_download(char *download_address, range range, char *proxy, char *file_name,
     int result = curl_easy_perform(curl);
     if (result != CURLE_OK) {
         fprintf(stderr, "curl_easy_perform() failed: %s\n", curl_easy_strerror((CURLcode) result));
-        download_speed = -1;
+        download_speed = -1;// this is not enough. Error handling will happens on the top of these code.
     } else {
         curl_easy_getinfo(curl, CURLINFO_SPEED_DOWNLOAD_T, &download_speed);
         curl_easy_cleanup(curl);

@@ -41,7 +41,7 @@ void *show_progress(void *args_raw) {
             total_progress += args->info_list[i].already_download;
         }
         total_speed = (curl_off_t) ((total_progress - last_progress_total_download_value) / METER_INTERVAL_SEC);
-        fprintf(stderr, "\rspeed:%s/s, progress: %.*f%%", humanSize(total_speed), 1,
+        fprintf(stderr, "\ractive:%d, speed:%s/s, progress: %.*f%%", *(args->proxy_count),humanSize(total_speed), 1,
                 (float) total_progress / (float) args->total_file_size * 100);
         sleep(METER_INTERVAL_SEC);
         last_progress_total_download_value = (curl_off_t) total_progress;

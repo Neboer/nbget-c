@@ -14,10 +14,10 @@ typedef unsigned long long file_bytes;
 #include "request_speed.c"
 #include "thread_control.c"
 #include "parser.c"
+#include "error_control.c"
 #include "download_control.c"
 #include "file_control.c"
 
-//#include "error_control.c"
 
 /* command line usage
  * nbget https://www.example.com http://localhost:1090 socks5://localhost:1080 good.txt
@@ -29,8 +29,6 @@ int main(int argc, char **argv) {
     int *work_proxy_count = &(args.proxy_count);// work proxy count will pass through whole program.
     file_bytes size = get_file_size(args.download_address);
     test_result testResult = test_proxy_list(args.download_address, args.proxy_list, work_proxy_count);
-    printf("active/positive proxy count %d\n", args.proxy_count);
-    fflush(stdout);
     create_file(args.file_name, size);
     // these two vars will pass to another thread to monitor global download status.
     file_bytes last_big_block_checkpoint = 0;
